@@ -1,0 +1,11 @@
+{
+    "service": {
+        "name": "backend",
+        "port": 49160,
+        "tags": ["nodejs"],
+        "check": {
+            "script": "curl localhost:49160 > /dev/null 2>&1",
+            "interval": "10s"
+        }
+    }
+}
