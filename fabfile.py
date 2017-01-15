@@ -28,6 +28,7 @@ lan_ip = backend_lan_ip + frontend_lan_ip
 
 
 def trash_container(name):
+    # drop existing container
     sudo('docker stop `sudo docker ps --no-trunc -aq -f name={}` || true'.format(name))
     sudo('docker rm `sudo docker ps --no-trunc -aq -f name={}` || true'.format(name))
 
@@ -46,6 +47,7 @@ def install_docker():
 
 @roles('backend')
 def deploy_app():
+    # deploy test node.js app from github
     repo_name = hello_app_github_url.split('/')[-1]
     run('rm -rf ' + repo_name)
     run('git clone ' + hello_app_github_url)
@@ -58,12 +60,14 @@ def deploy_app():
 
 @roles('backend')
 def back_init():
+    # remove backend docker containers
     trash_container('hello')
     trash_container('consul')
 
 
 @roles('backend')
 def back_consul():
+    # setup consul for backend
     sudo('rm -rf /etc/consul')
     sudo('mkdir /etc/consul')
 
@@ -80,6 +84,7 @@ def back_consul():
 
 @roles('frontend')
 def front_init():
+    # remove frontend docker containers
     trash_container('nginx')
     trash_container('consul')
     trash_container('consul-template')
@@ -87,6 +92,7 @@ def front_init():
 
 @roles('frontend')
 def front_consul():
+    # setup consul for frontend
     sudo('rm -rf /etc/consul')
     sudo('mkdir /etc/consul')
 
@@ -96,12 +102,13 @@ def front_consul():
 @runs_once
 @roles('backend')
 def consul_join():
+    # join consul cluster
     sudo('docker exec consul consul join ' + ' '.join(lan_ip))
 
 
 @roles('frontend')
 def front_setup():
-    # nginx configs
+    # setup and run frontend stuff
     sudo('rm -rf /etc/nginx')
     sudo('mkdir /etc/nginx')
     put('nginx.conf', '/etc/nginx/', use_sudo=True)
@@ -112,3 +119,8 @@ def front_setup():
 
     # run consul-template
     sudo('docker run -d --name consul-template --restart=always --net=host -v /etc/nginx/:/etc/ctmpl/ -v /var/run/docker.sock:/var/run/docker.sock -v `which docker`:/usr/bin/docker -v /usr/lib/x86_64-linux-gnu/:/usr/lib/x86_64-linux-gnu/:ro -v /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu alterway/consul-template-nginx -consul=localhost:8500 -wait=2s -template="/etc/ctmpl/nginx.ctmpl:/etc/ctmpl/nginx.conf:docker restart nginx"')
+
+
+
+# finally install everything with:
+# fab back_init deploy_app back_consul front_init front_consul consul_join front_setup
